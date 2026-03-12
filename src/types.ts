@@ -80,6 +80,15 @@ export interface LunchEntry {
   value?: number;
 }
 
+export interface AdHocMaintenance {
+  id: string;
+  tripId: string;
+  date: string;
+  description: string;
+  value: number;
+  photoUrl?: string;
+}
+
 export interface Trip {
   id: string;
   externalId?: string;
@@ -89,6 +98,7 @@ export interface Trip {
   startKm: number;
   endKm?: number;
   startDate: string;
+  startedAt?: string;
   endDate?: string;
   status: 'active' | 'completed';
   checklist: Checklist;

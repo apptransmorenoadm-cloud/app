@@ -1756,7 +1756,7 @@ function UsersView({ profile }: { profile: UserProfile | null }) {
 }
 
 function DriverView({ profile }: { profile: UserProfile | null }) {
-  const [activeTab, setActiveTab] = useState<'checklist' | 'fuel' | 'lunch'>('checklist');
+  const [activeTab, setActiveTab] = useState<'checklist' | 'fuel' | 'lunch' | 'maintenance'>('checklist');
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -1870,6 +1870,43 @@ function DriverView({ profile }: { profile: UserProfile | null }) {
     }
   };
 
+  const handleStartTrip = async () => {
+    if (!activeTrip) return;
+    try {
+      setUploading(true);
+      await updateDocument('trips', activeTrip.id, {
+        startedAt: new Date().toISOString()
+      });
+      alert("Viagem iniciada com sucesso! Prossiga para o checklist.");
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleMaintenanceSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!activeTrip) return alert("Nenhuma viagem ativa encontrada.");
+    const formData = new FormData(e.currentTarget);
+    
+    try {
+      setUploading(true);
+      await addDocument('maintenance_logs', {
+        tripId: activeTrip.id,
+        date: new Date().toISOString(),
+        description: formData.get('description') as string,
+        value: parseFloat(formData.get('value') as string)
+      });
+      alert("Manutenção registrada!");
+      (e.target as HTMLFormElement).reset();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleLunch = async () => {
     if (!activeTrip) return alert("Nenhuma viagem ativa encontrada.");
     try {
@@ -1902,6 +1939,42 @@ function DriverView({ profile }: { profile: UserProfile | null }) {
     );
   }
 
+  // Phase 1: Not started yet
+  if (!activeTrip.startedAt) {
+    return (
+      <div className="space-y-8">
+        <div className="bg-white p-10 rounded-[32px] border border-zinc-200 shadow-xl text-center space-y-6">
+          <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-500">
+            <Truck size={40} />
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-zinc-900">Boa viagem!</h2>
+            <p className="text-zinc-500 mt-2 font-medium">Você tem uma nova viagem designada para:</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1 uppercase tracking-tight">{activeTrip.route || 'Rota não definida'}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 bg-zinc-50 p-6 rounded-2xl border border-zinc-100 text-left">
+            <div>
+              <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-1">Cavalinho</p>
+              <p className="font-bold text-zinc-900">{trucks.find(t => t.id === activeTrip.truckId || t.externalId === activeTrip.truckId)?.plate || activeTrip.truckId}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-1">Carreta(s)</p>
+              <p className="font-bold text-zinc-900">{activeTrip.trailerIds?.map(tid => trailers.find(t => t.id === tid || t.externalId === tid)?.plate || tid).join(' / ') || 'Nenhuma'}</p>
+            </div>
+          </div>
+          <button 
+            onClick={handleStartTrip}
+            disabled={uploading}
+            className="w-full bg-zinc-900 text-white py-5 rounded-2xl font-black text-lg shadow-2xl shadow-zinc-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+          >
+            {uploading ? <Loader2 className="animate-spin" /> : <ChevronRight size={24} />}
+            INICIAR VIAGEM
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const truckPlate = trucks.find(t => t.id === activeTrip.truckId || t.externalId === activeTrip.truckId)?.plate || activeTrip.truckId;
   const trailerPlates = activeTrip.trailerIds?.map(tid => trailers.find(t => t.id === tid || t.externalId === tid)?.plate || tid);
 
@@ -1927,22 +2000,30 @@ function DriverView({ profile }: { profile: UserProfile | null }) {
         </div>
       </div>
 
-      <div className="flex gap-2 p-1.5 bg-zinc-100 rounded-2xl w-full">
-        {(['checklist', 'fuel', 'lunch'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "flex-1 px-4 py-3 rounded-xl text-xs font-bold transition-all uppercase tracking-widest flex items-center justify-center gap-2",
-              activeTab === tab ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
-            )}
-          >
-            {tab === 'checklist' && <CheckCircle2 size={16} />}
-            {tab === 'fuel' && <Fuel size={16} />}
-            {tab === 'lunch' && <Utensils size={16} />}
-            {tab === 'checklist' ? 'Checklist' : tab === 'fuel' ? 'Abastecer' : 'Almoço'}
-          </button>
-        ))}
+      <div className="flex gap-2 p-1.5 bg-zinc-100 rounded-2xl w-full overflow-x-auto">
+        {(['fuel', 'maintenance', 'lunch', 'checklist'] as const).map(tab => {
+          const isChecklistDone = !!activeTrip.checklist?.completedAt;
+          const isDisabled = !isChecklistDone && tab !== 'checklist';
+
+          return (
+            <button
+              key={tab}
+              onClick={() => !isDisabled && setActiveTab(tab)}
+              disabled={isDisabled}
+              className={cn(
+                "flex-1 min-w-[100px] px-4 py-3 rounded-xl text-xs font-bold transition-all uppercase tracking-widest flex items-center justify-center gap-2",
+                activeTab === tab ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600",
+                isDisabled && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {tab === 'checklist' && <CheckCircle2 size={16} />}
+              {tab === 'fuel' && <Fuel size={16} />}
+              {tab === 'maintenance' && <Wrench size={16} />}
+              {tab === 'lunch' && <Utensils size={16} />}
+              {tab === 'checklist' ? 'Checklist' : tab === 'fuel' ? 'Abastecer' : tab === 'maintenance' ? 'Manutenção' : 'Almoço'}
+            </button>
+          );
+        })}
       </div>
 
       <motion.div
@@ -1954,30 +2035,61 @@ function DriverView({ profile }: { profile: UserProfile | null }) {
         {activeTab === 'checklist' && (
           <form onSubmit={handleChecklistSubmit} className="space-y-6">
             <div className="space-y-4">
-              <p className="text-sm font-bold text-zinc-900">Verifique os itens antes de sair:</p>
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-bold text-zinc-900">Verifique os itens antes de sair:</p>
+                {activeTrip.checklist?.completedAt && (
+                  <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                    Concluído às {new Date(activeTrip.checklist.completedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </span>
+                )}
+              </div>
               <div className="grid gap-3">
-                {['Pneus', 'Freios', 'Luzes', 'Nível de Óleo', 'Engate'].map(item => (
-                  <label key={item} className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-100 cursor-pointer hover:bg-emerald-50 transition-colors">
-                    <input type="checkbox" className="w-5 h-5 accent-emerald-500" required />
-                    <span className="font-medium text-zinc-700">{item} OK</span>
-                  </label>
-                ))}
+                {['Pneus', 'Freios', 'Luzes', 'Nível de Óleo', 'Engate'].map(item => {
+                  const isChecked = activeTrip.checklist?.items?.includes(item);
+                  const isCompleted = !!activeTrip.checklist?.completedAt;
+                  
+                  return (
+                    <label key={item} className={cn(
+                      "flex items-center gap-4 p-4 rounded-2xl border transition-colors",
+                      isCompleted ? "bg-zinc-50 border-zinc-100 opacity-80 cursor-default" : "bg-zinc-50 border-zinc-100 cursor-pointer hover:bg-emerald-50"
+                    )}>
+                      <input 
+                        type="checkbox" 
+                        defaultChecked={isChecked}
+                        disabled={isCompleted}
+                        className="w-5 h-5 accent-emerald-500" 
+                        required={!isCompleted}
+                      />
+                      <span className="font-medium text-zinc-700">{item} OK</span>
+                    </label>
+                  );
+                })}
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Observações ou Fotos (Opcional)</label>
-                <textarea name="notes" placeholder="Descreva qualquer detalhe importante..." className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl outline-none" rows={3}></textarea>
-                <div className="flex gap-4">
-                  <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 rounded-2xl p-6 hover:border-emerald-500 transition-colors cursor-pointer text-zinc-400 hover:text-emerald-500">
-                    <Plus size={24} className="mb-2" />
-                    <span className="text-xs font-bold">Adicionar Foto</span>
-                    <input type="file" className="hidden" accept="image/*" capture="environment" />
-                  </label>
+              {!activeTrip.checklist?.completedAt && (
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Observações ou Fotos (Opcional)</label>
+                  <textarea name="notes" placeholder="Descreva qualquer detalhe importante..." className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl outline-none" rows={3}></textarea>
+                  <div className="flex gap-4">
+                    <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 rounded-2xl p-6 hover:border-emerald-500 transition-colors cursor-pointer text-zinc-400 hover:text-emerald-500">
+                      <Plus size={24} className="mb-2" />
+                      <span className="text-xs font-bold">Adicionar Foto</span>
+                      <input type="file" className="hidden" accept="image/*" capture="environment" />
+                    </label>
+                  </div>
                 </div>
-              </div>
+              )}
+              {activeTrip.checklist?.notes && activeTrip.checklist?.completedAt && (
+                <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase mb-2">Observações</p>
+                  <p className="text-zinc-600 text-sm whitespace-pre-wrap">{activeTrip.checklist.notes}</p>
+                </div>
+              )}
             </div>
-            <button type="submit" disabled={uploading} className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all">
-              {uploading ? 'Enviando...' : 'Confirmar Checklist'}
-            </button>
+            {!activeTrip.checklist?.completedAt && (
+              <button type="submit" disabled={uploading} className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all">
+                {uploading ? 'Enviando...' : 'Confirmar Checklist'}
+              </button>
+            )}
           </form>
         )}
 
@@ -2007,14 +2119,36 @@ function DriverView({ profile }: { profile: UserProfile | null }) {
           </form>
         )}
 
+        {activeTab === 'maintenance' && (
+          <form onSubmit={handleMaintenanceSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Descrição do Serviço</label>
+                <input name="description" required placeholder="Ex: Conserto de pneu, Troca de lâmpada..." className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl outline-none" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Valor R$ (Opcional)</label>
+                <input name="value" type="number" step="0.01" placeholder="R$ 0,00" className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl outline-none" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Foto (Opcional)</label>
+                <input name="photo" type="file" accept="image/*" capture="environment" className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl outline-none" />
+              </div>
+            </div>
+            <button type="submit" disabled={uploading} className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all">
+              {uploading ? 'Salvando...' : 'Registrar Manutenção'}
+            </button>
+          </form>
+        )}
+
         {activeTab === 'lunch' && (
-          <div className="flex flex-col items-center justify-center p-10 space-y-6">
+          <div className="flex flex-col items-center justify-center p-10 space-y-6 text-center">
             <div className="w-24 h-24 bg-amber-50 rounded-full flex items-center justify-center text-amber-500">
               <Utensils size={48} />
             </div>
-            <div className="text-center">
+            <div>
               <h3 className="text-xl font-bold text-zinc-900">Hora do Almoço</h3>
-              <p className="text-zinc-500 mt-2">Registre sua saída ou retorno do intervalo.</p>
+              <p className="text-zinc-500 mt-2">Registre sua saída ou retorno do intervalo durante esta viagem.</p>
             </div>
             <button onClick={handleLunch} className="w-full max-w-xs bg-amber-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all">
               Registrar Agora
