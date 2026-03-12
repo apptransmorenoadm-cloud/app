@@ -1908,15 +1908,22 @@ function DriverView({ profile }: { profile: UserProfile | null }) {
   };
 
   const handleLunch = async () => {
+    console.log("DEBUG: handleLunch clicked, activeTrip:", activeTrip?.id);
     if (!activeTrip) return alert("Nenhuma viagem ativa encontrada.");
+    
     try {
-      await addDocument('lunch_entries', {
+      setUploading(true);
+      const res = await addDocument('lunch_entries', {
         tripId: activeTrip.id,
         date: new Date().toISOString()
       });
-      alert("Almoço registrado!");
+      console.log("DEBUG: Lunch entry saved with ID:", res);
+      alert("Almoço registrado com sucesso!");
     } catch (error) {
-      console.error(error);
+      console.error("DEBUG: Error in handleLunch:", error);
+      alert("Erro ao registrar almoço: " + (error instanceof Error ? error.message : "Erro desconhecido"));
+    } finally {
+      setUploading(false);
     }
   };
 
