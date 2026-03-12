@@ -1764,12 +1764,25 @@ function DriverView({ profile }: { profile: UserProfile | null }) {
     if (!profile) return;
     
     // First, subscribe to drivers to find our internal ID
-    const unsubDrivers = subscribeToCollection<Driver>('drivers', (drivers) => {
+    const unsubDrivers = subscribeToCollection<Driver>('drivers', async (drivers) => {
       console.log("DEBUG: Drivers found:", drivers.length);
-      const myDriverRecord = drivers.find(d => d.uid === profile.uid);
+      
+      // 1. Try match by UID
+      let myDriverRecord = drivers.find(d => d.uid === profile.uid);
+      
+      // 2. Fallback: match by phone if UID is missing
+      if (!myDriverRecord) {
+        const phoneFromEmail = profile.email.split('@')[0];
+        myDriverRecord = drivers.find(d => d.phone.replace(/\D/g, '') === phoneFromEmail.replace(/\D/g, ''));
+        
+        if (myDriverRecord) {
+          console.log("DEBUG: Auto-linking UID for driver:", myDriverRecord.name);
+          await updateDocument('drivers', myDriverRecord.id, { uid: profile.uid });
+        }
+      }
       
       if (!myDriverRecord) {
-        console.warn("DEBUG: Driver record NOT found for UID:", profile.uid);
+        console.warn("DEBUG: Driver record NOT found for UID:", profile.uid, "Email:", profile.email);
         return;
       }
 
