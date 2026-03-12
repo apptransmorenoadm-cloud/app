@@ -1,0 +1,163 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User account information and role.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["master", "employee"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "Driver": {
+      "title": "Driver",
+      "description": "Information about fleet drivers.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "licenseNumber": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["name", "licenseNumber", "status"]
+    },
+    "Truck": {
+      "title": "Truck",
+      "description": "Information about trucks (cavalos).",
+      "type": "object",
+      "properties": {
+        "plate": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "integer" },
+        "status": { "type": "string", "enum": ["available", "on-trip", "maintenance"] }
+      },
+      "required": ["plate", "model", "status"]
+    },
+    "Trailer": {
+      "title": "Trailer",
+      "description": "Information about trailers (carretas).",
+      "type": "object",
+      "properties": {
+        "plate": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "on-trip", "maintenance"] }
+      },
+      "required": ["plate", "type", "status"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Information about suppliers for parts and maintenance.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "contact": { "type": "string" }
+      },
+      "required": ["name", "cnpj"]
+    },
+    "Maintenance": {
+      "title": "Maintenance",
+      "description": "Records of maintenance and parts purchases.",
+      "type": "object",
+      "properties": {
+        "truckId": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "totalValue": { "type": "number" },
+        "installments": { "type": "integer" },
+        "status": { "type": "string", "enum": ["pending", "paid"] }
+      },
+      "required": ["truckId", "supplierId", "date", "totalValue", "status"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "Records of fleet trips.",
+      "type": "object",
+      "properties": {
+        "driverId": { "type": "string" },
+        "truckId": { "type": "string" },
+        "trailerIds": { "type": "array", "items": { "type": "string" } },
+        "startKm": { "type": "number" },
+        "endKm": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "checklist": {
+          "type": "object",
+          "properties": {
+            "truckOk": { "type": "boolean" },
+            "trailersOk": { "type": "boolean" },
+            "tiresOk": { "type": "boolean" },
+            "lightsOk": { "type": "boolean" },
+            "notes": { "type": "string" }
+          }
+        }
+      },
+      "required": ["driverId", "truckId", "startDate", "status"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Expenses recorded during a trip.",
+      "type": "object",
+      "properties": {
+        "tripId": { "type": "string" },
+        "type": { "type": "string", "enum": ["maintenance", "lunch", "fuel", "other"] },
+        "value": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tripId", "type", "value", "date"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Products stored in the logistics warehouse.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "unit": { "type": "string" }
+      },
+      "required": ["name", "sku", "unit"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Invoices for storage and stock control.",
+      "type": "object",
+      "properties": {
+        "number": { "type": "string" },
+        "type": { "type": "string", "enum": ["in", "out"] },
+        "supplierId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["number", "type", "date", "items"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "UserProfile", "description": "User profiles and roles." },
+    "/drivers/{id}": { "schema": "Driver", "description": "Fleet drivers." },
+    "/trucks/{id}": { "schema": "Truck", "description": "Fleet trucks." },
+    "/trailers/{id}": { "schema": "Trailer", "description": "Fleet trailers." },
+    "/suppliers/{id}": { "schema": "Supplier", "description": "Suppliers for maintenance." },
+    "/maintenance/{id}": { "schema": "Maintenance", "description": "Maintenance records." },
+    "/trips/{id}": { "schema": "Trip", "description": "Trip records." },
+    "/expenses/{id}": { "schema": "Expense", "description": "Trip expenses." },
+    "/products/{id}": { "schema": "Product", "description": "Logistics products." },
+    "/invoices/{id}": { "schema": "Invoice", "description": "Logistics invoices." }
+  }
+}
