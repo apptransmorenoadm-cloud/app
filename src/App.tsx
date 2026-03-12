@@ -312,7 +312,7 @@ export default function App() {
                   <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
                     <Truck size={24} />
                   </div>
-                  {isSidebarOpen && <span className="font-bold text-white text-xl tracking-tight">FleetMaster</span>}
+                  {isSidebarOpen && <span className="font-bold text-white text-xl tracking-tight">Frota Fácil</span>}
                 </div>
               </div>
 
@@ -406,7 +406,7 @@ export default function App() {
                   <Truck size={20} />
                 </div>
                 <div>
-                  <h1 className="text-lg font-black text-zinc-900 tracking-tight leading-none">FleetMaster</h1>
+                  <h1 className="text-lg font-black text-zinc-900 tracking-tight leading-none">Frota Fácil</h1>
                   <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Driver Portal</p>
                 </div>
               </div>
