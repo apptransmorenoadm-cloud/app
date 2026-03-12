@@ -1765,15 +1765,32 @@ function DriverView({ profile }: { profile: UserProfile | null }) {
     
     // First, subscribe to drivers to find our internal ID
     const unsubDrivers = subscribeToCollection<Driver>('drivers', (drivers) => {
+      console.log("DEBUG: Drivers found:", drivers.length);
       const myDriverRecord = drivers.find(d => d.uid === profile.uid);
-      if (!myDriverRecord) return;
+      
+      if (!myDriverRecord) {
+        console.warn("DEBUG: Driver record NOT found for UID:", profile.uid);
+        return;
+      }
+
+      console.log("DEBUG: My Driver Record:", myDriverRecord.name, "ID:", myDriverRecord.id, "ExtID:", myDriverRecord.externalId);
 
       // Then subscribe to trips
       const unsubTrips = subscribeToCollection<Trip>('trips', (trips) => {
+        const activeTrips = trips.filter(t => t.status === 'active');
+        console.log("DEBUG: Total active trips:", activeTrips.length);
+        
         const current = trips.find(t => 
           (t.driverId === myDriverRecord.id || t.driverId === myDriverRecord.externalId) && 
           t.status === 'active'
         );
+        
+        if (current) {
+          console.log("DEBUG: Active trip found:", current.id, "Route:", current.route);
+        } else {
+          console.warn("DEBUG: No active trip found for driverId:", myDriverRecord.id, "or", myDriverRecord.externalId);
+        }
+        
         setActiveTrip(current || null);
       });
       return unsubTrips;
